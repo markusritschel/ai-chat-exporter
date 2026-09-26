@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://markusritschel.github.io/ai-chat-exporter/"><img src="https://img.shields.io/badge/Install-Chat%20Export%20bookmark-0f766e?style=for-the-badge" alt="Install the Chat Export bookmark" /></a>
+  <a href="https://markusritschel.github.io/ai-chat-exporter/"><img src="https://img.shields.io/badge/Install-AI%20Chat%20Export%20bookmark-0f766e?style=for-the-badge" alt="Install the AI Chat Export bookmark" /></a>
 </p>
 
 <p align="center">
@@ -31,7 +31,7 @@ as the assistant wrote it, with frontmatter your notes app understands.
 
 No extension and no account — the whole tool lives in one bookmark.
 
-1. **Add it to your bar.** On the [install page](https://markusritschel.github.io/ai-chat-exporter/), pull the _Chat Export_ button up into your bookmarks bar. It appears there as “⬇️ Chat Export”.
+1. **Add it to your bar.** On the [install page](https://markusritschel.github.io/ai-chat-exporter/), pull the _AI Chat Export_ button up into your bookmarks bar.
 2. **Open a conversation** on [claude.ai](https://claude.ai), [chatgpt.com](https://chatgpt.com) or [chat.mistral.ai](https://chat.mistral.ai).
 3. **Click to save.** A small notice confirms the export, and the Markdown file lands in your downloads.
 

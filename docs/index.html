@@ -3,12 +3,49 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AI Chat Exporter — save AI conversations as Markdown</title>
+    <title>Export ChatGPT & Claude chats to Markdown — AI Chat Exporter</title>
     <meta
       name="description"
-      content="A bookmark that saves the Claude, ChatGPT or Mistral Vibe conversation you have open as a Markdown file — read from the app's own data and assembled entirely on your machine."
+      content="Save any Claude, ChatGPT or Mistral Vibe (Le Chat) conversation as a clean Markdown file with one click. Free bookmarklet, runs locally — ready for Obsidian."
     />
     <meta name="theme-color" content="#0f766e" />
+    <!-- Search and link previews. None of this is fetched when a visitor opens
+         the page (crawlers and link unfurlers read it), so the page still
+         contacts nothing but GitHub. -->
+    <link rel="canonical" href="https://markusritschel.github.io/ai-chat-exporter/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="AI Chat Exporter" />
+    <meta property="og:title" content="Export ChatGPT & Claude chats to Markdown — AI Chat Exporter" />
+    <meta property="og:description" content="Save any Claude, ChatGPT or Mistral Vibe (Le Chat) conversation as a clean Markdown file with one click. Free bookmarklet, runs locally — ready for Obsidian." />
+    <meta property="og:url" content="https://markusritschel.github.io/ai-chat-exporter/" />
+    <meta property="og:image" content="https://markusritschel.github.io/ai-chat-exporter/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="AI Chat Exporter — your AI chats as clean Markdown" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "AI Chat Exporter",
+  "description": "Save any Claude, ChatGPT or Mistral Vibe (Le Chat) conversation as a clean Markdown file with one click. Free bookmarklet, runs locally — ready for Obsidian.",
+  "url": "https://markusritschel.github.io/ai-chat-exporter/",
+  "image": "https://markusritschel.github.io/ai-chat-exporter/og-image.png",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Web browser (Chrome, Edge, Firefox, Safari)",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "license": "https://opensource.org/licenses/MIT",
+  "author": {
+    "@type": "Person",
+    "name": "Markus Ritschel"
+  },
+  "sameAs": "https://github.com/markusritschel/ai-chat-exporter"
+}
+    </script>
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M8 3h16a5 5 0 0 1 5 5v11a5 5 0 0 1-5 5H13l-6 5v-5.2A5 5 0 0 1 3 19V8a5 5 0 0 1 5-5z' fill='%230f766e'/%3E%3Cpath d='M16 8v8.5M12 13l4 4 4-4M11 20h10' stroke='%23fff' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
@@ -199,16 +236,6 @@
         transition:
           transform 0.15s,
           background 0.15s;
-      }
-      /* Zero-width inline box, not position:absolute or display:none: both
-         would drop it from, or break the line in, the link text Chrome uses
-         as the bookmark name. */
-      .drag .bar-icon {
-        display: inline-block;
-        width: 0;
-        height: 0;
-        overflow: hidden;
-        vertical-align: top;
       }
       .drag svg {
         width: 22px;
@@ -578,14 +605,12 @@
             Keep the conversations worth keeping. One click saves the chat on your screen as a <code>.md</code> file — every table, formula and code block as the assistant wrote it, with frontmatter your notes app understands.
           </p>
           <div class="cta">
-            <!-- The link's text becomes the bookmark's name when dragged, and a
-                 javascript: bookmark can have no favicon — so its bar icon is
-                 the emoji leading that text. It is visually hidden (see
-                 .bar-icon) so the button shows only the SVG glyph. -->
+            <!-- The link's text becomes the bookmark's name when dragged; the SVG
+                 contributes no text, so the bookmark is named "AI Chat Export". -->
             <a id="bm" class="drag" href="#" aria-disabled="true"
               ><svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 4v10M7.5 10l4.5 4.5 4.5-4.5M6 19h12" /></svg
-              ><span><span class="bar-icon" aria-hidden="true">⬇️&nbsp;</span>Chat Export</span></a
+              ><span>AI Chat Export</span></a
             >
           </div>
           <p class="hint" id="hint">Fetching the current script…</p>
@@ -631,7 +656,7 @@ merged = list(merge(a, b))
         <ol class="steps grid">
           <li class="card">
             <h3>Add it to your bar</h3>
-            <p>Pull the Chat Export button up into your bookmarks bar.</p>
+            <p>Pull the AI Chat Export button up into your bookmarks bar.</p>
           </li>
           <li class="card">
             <h3>Open a conversation</h3>
@@ -780,6 +805,34 @@ merged = list(merge(a, b))
             </p>
           </div>
         </div>
+      </section>
+
+      <section class="narrow" aria-labelledby="faq">
+        <h2 id="faq">Questions</h2>
+        <details>
+          <summary>How do I export a ChatGPT conversation to Markdown?</summary>
+          <p>Drag the AI Chat Export button into your bookmarks bar, open the conversation on chatgpt.com and click the bookmark. The chat downloads as a <code>.md</code> file named after the conversation, with frontmatter and one heading per turn.</p>
+        </details>
+        <details>
+          <summary>Can I save a Claude chat with its artifacts?</summary>
+          <p>Yes. Artifacts arrive in their final version as fenced code blocks, together with created files and charts, right where they appeared in the conversation. The text of attached documents is quoted; images and PDFs are linked.</p>
+        </details>
+        <details>
+          <summary>Does it work with Mistral Le Chat?</summary>
+          <p>Yes — Le Chat is now called Mistral Vibe, still at chat.mistral.ai. The export follows the version of each message you are looking at, including edited and regenerated ones.</p>
+        </details>
+        <details>
+          <summary>Is my conversation uploaded anywhere?</summary>
+          <p>No. The bookmark reads the conversation from the chat app you are signed in to and builds the file inside your browser tab. There is no server involved and nothing is sent to anyone.</p>
+        </details>
+        <details>
+          <summary>Do I need a browser extension?</summary>
+          <p>No. The whole tool is a single bookmark, so there is nothing to install or grant permissions to. It works in current Chrome, Edge, Firefox and Safari.</p>
+        </details>
+        <details>
+          <summary>Why Markdown?</summary>
+          <p>Markdown keeps tables, math and code intact and opens anywhere. The YAML frontmatter becomes note properties in Obsidian, and one heading per turn gives retrieval (RAG) pipelines clean chunks.</p>
+        </details>
       </section>
 
       <section class="narrow" aria-labelledby="privacy">
