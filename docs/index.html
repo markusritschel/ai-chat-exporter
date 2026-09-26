@@ -1,0 +1,951 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI Chat Exporter — save AI conversations as Markdown</title>
+    <meta
+      name="description"
+      content="A bookmark that saves the Claude, ChatGPT or Mistral Vibe conversation you have open as a Markdown file — read from the app's own data and assembled entirely on your machine."
+    />
+    <meta name="theme-color" content="#0f766e" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M8 3h16a5 5 0 0 1 5 5v11a5 5 0 0 1-5 5H13l-6 5v-5.2A5 5 0 0 1 3 19V8a5 5 0 0 1 5-5z' fill='%230f766e'/%3E%3Cpath d='M16 8v8.5M12 13l4 4 4-4M11 20h10' stroke='%23fff' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
+    />
+    <style>
+      /* System fonts and inline SVG only: the page's sole external requests are the
+     two to GitHub (the script and the star count). A web font or CDN would add a
+     third party that sees every visitor, and break the "no tracking" claim. */
+      :root {
+        --bg: #f6f8f7;
+        --surface: #ffffff;
+        --text: #13201e;
+        --muted: #55625f;
+        --border: rgba(19, 32, 30, 0.1);
+        --accent: #0f766e;
+        --accent-strong: #115e59;
+        --on-accent: #ffffff;
+        --accent-soft: rgba(15, 118, 110, 0.09);
+        --shadow:
+          0 1px 2px rgba(19, 32, 30, 0.05), 0 10px 30px rgba(19, 32, 30, 0.07);
+        --doc-bg: #0f1a19;
+        --doc-text: #d7e4e1;
+        --doc-muted: #7f9793;
+        --doc-key: #5eead4;
+        --doc-head: #fbbf24;
+        --mono:
+          ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+        color-scheme: light dark;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0b1211;
+          --surface: #121b1a;
+          --text: #e4eeec;
+          --muted: #97a8a4;
+          --border: rgba(228, 238, 236, 0.1);
+          --accent: #2dd4bf;
+          --accent-strong: #5eead4;
+          --on-accent: #042f2e;
+          --accent-soft: rgba(45, 212, 191, 0.1);
+          --shadow:
+            0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.35);
+          --doc-bg: #070d0c;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+      }
+      a {
+        color: inherit;
+      }
+      code {
+        font-family: var(--mono);
+        font-size: 0.88em;
+        padding: 0.1em 0.35em;
+        border-radius: 5px;
+        background: var(--accent-soft);
+      }
+      .wrap {
+        max-width: 1040px;
+        margin-inline: auto;
+        padding: 0 16px 2.5rem;
+      }
+      .narrow {
+        max-width: 760px;
+        margin-inline: auto;
+      }
+
+      /* top bar */
+      .topbar {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1.1rem 0;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-weight: 700;
+        font-size: 1.05rem;
+        text-decoration: none;
+        letter-spacing: -0.01em;
+      }
+      .brand svg {
+        width: 30px;
+        height: 30px;
+        flex: none;
+      }
+      .brand svg .bubble {
+        fill: var(--accent);
+      }
+      .brand svg .glyph {
+        stroke: var(--on-accent);
+      }
+      .chip {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        text-decoration: none;
+        font-size: 0.88rem;
+        font-weight: 600;
+        padding: 0.42rem 0.85rem;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface);
+        white-space: nowrap;
+        transition: border-color 0.15s;
+      }
+      .chip:hover {
+        border-color: var(--accent);
+      }
+      .chip svg {
+        width: 16px;
+        height: 16px;
+        fill: currentColor;
+      }
+      .chip .count {
+        font-variant-numeric: tabular-nums;
+        color: var(--muted);
+      }
+
+      /* hero */
+      .hero {
+        display: grid;
+        grid-template-columns: 1.05fr 1fr;
+        gap: 3rem;
+        align-items: center;
+        padding: 3rem 0 3.5rem;
+      }
+      .eyebrow {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        letter-spacing: 0.04em;
+        color: var(--accent);
+        background: var(--accent-soft);
+        padding: 0.3rem 0.65rem;
+        border-radius: 999px;
+        margin: 0 0 1.1rem;
+      }
+      .hero h1 {
+        font-size: clamp(2.1rem, 4.6vw, 3.1rem);
+        line-height: 1.08;
+        letter-spacing: -0.03em;
+        margin: 0 0 1rem;
+      }
+      .hero h1 em {
+        font-style: normal;
+        color: var(--accent);
+      }
+      .lead {
+        font-size: 1.12rem;
+        color: var(--muted);
+        margin: 0 0 1.8rem;
+        max-width: 31rem;
+      }
+      .cta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.8rem 1rem;
+      }
+      .drag {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        padding: 0.95rem 1.6rem;
+        background: var(--accent);
+        color: var(--on-accent);
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 1.1rem;
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(15, 118, 110, 0.28);
+        cursor: grab;
+        transition:
+          transform 0.15s,
+          background 0.15s;
+      }
+      /* Zero-width inline box, not position:absolute or display:none: both
+         would drop it from, or break the line in, the link text Chrome uses
+         as the bookmark name. */
+      .drag .bar-icon {
+        display: inline-block;
+        width: 0;
+        height: 0;
+        overflow: hidden;
+        vertical-align: top;
+      }
+      .drag svg {
+        width: 22px;
+        height: 22px;
+        flex: none;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2.4;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .drag:hover {
+        background: var(--accent-strong);
+        transform: translateY(-1px);
+      }
+      .drag[aria-disabled="true"] {
+        opacity: 0.5;
+        cursor: default;
+        box-shadow: none;
+        transform: none;
+      }
+      .hint {
+        font-size: 0.9rem;
+        color: var(--muted);
+        margin: 0.7rem 0 0;
+        min-height: 1.5em;
+      }
+      .apps {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin: 1.5rem 0 0;
+        padding: 0;
+        list-style: none;
+        font-size: 0.86rem;
+      }
+      .apps li {
+        padding: 0.28rem 0.7rem;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+      }
+      .apps li span {
+        color: var(--muted);
+        font-size: 0.78rem;
+        margin-left: 0.25rem;
+      }
+      .apps .label {
+        border: 0;
+        background: none;
+        padding-left: 0;
+        color: var(--muted);
+      }
+
+      /* the output preview */
+      .doc {
+        margin: 0;
+        background: var(--doc-bg);
+        color: var(--doc-text);
+        border-radius: 14px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        min-width: 0;
+      }
+      .doc-bar {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.7rem 0.95rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        color: var(--doc-muted);
+      }
+      .doc-bar i {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.14);
+      }
+      .doc-bar b {
+        margin-left: 0.5rem;
+        font-weight: 500;
+        color: var(--doc-text);
+      }
+      .doc pre {
+        margin: 0;
+        padding: 1.1rem 1.2rem 1.3rem;
+        font-family: var(--mono);
+        font-size: 0.8rem;
+        line-height: 1.65;
+        overflow-x: auto;
+        white-space: pre;
+      }
+      .doc .m {
+        color: var(--doc-muted);
+      }
+      .doc .k {
+        color: var(--doc-key);
+      }
+      .doc .h {
+        color: var(--doc-head);
+        font-weight: 700;
+      }
+
+      /* sections */
+      section {
+        padding: 2.2rem 0;
+      }
+      h2 {
+        font-size: 1.45rem;
+        letter-spacing: -0.02em;
+        margin: 0 0 0.4rem;
+      }
+      .sub {
+        color: var(--muted);
+        margin: 0 0 1.6rem;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 1.2rem 1.25rem;
+      }
+      .card h3 {
+        font-size: 1rem;
+        margin: 0.7rem 0 0.3rem;
+      }
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.93rem;
+      }
+      .ic {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+      .ic svg {
+        width: 20px;
+        height: 20px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .app-card .status {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        padding: 0.18rem 0.5rem;
+        border-radius: 6px;
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+      .app-card .status.beta {
+        background: rgba(245, 158, 11, 0.14);
+        color: #b45309;
+      }
+      @media (prefers-color-scheme: dark) {
+        .app-card .status.beta {
+          color: #fbbf24;
+        }
+      }
+      .app-card h3 {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 0;
+      }
+      .app-card .host {
+        font-family: var(--mono);
+        font-size: 0.8rem;
+        color: var(--muted);
+        margin: 0 0 0.7rem;
+      }
+
+      ol.steps {
+        list-style: none;
+        counter-reset: s;
+        padding: 0;
+        margin: 0;
+      }
+      ol.steps li {
+        counter-increment: s;
+      }
+      ol.steps li::before {
+        content: counter(s);
+        display: grid;
+        place-items: center;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: var(--accent);
+        color: var(--on-accent);
+        font-weight: 700;
+        font-size: 0.9rem;
+        margin-bottom: 0.7rem;
+      }
+
+      .privacy {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 1.1rem;
+        align-items: start;
+      }
+      .privacy p {
+        margin: 0.25rem 0 0;
+        color: var(--muted);
+      }
+      .privacy strong {
+        color: var(--text);
+      }
+      .small {
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      details {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 0.7rem 1.25rem;
+        margin-top: 1rem;
+      }
+      summary {
+        cursor: pointer;
+        font-weight: 600;
+      }
+      details p {
+        color: var(--muted);
+      }
+      button.copy {
+        font: inherit;
+        font-weight: 600;
+        padding: 0.5rem 1rem;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        color: inherit;
+        cursor: pointer;
+      }
+      button.copy:hover:not(:disabled) {
+        border-color: var(--accent);
+      }
+      button.copy:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+
+      footer {
+        margin-top: 2rem;
+        padding-top: 1.4rem;
+        border-top: 1px solid var(--border);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem 1.5rem;
+        justify-content: space-between;
+        font-size: 0.88rem;
+        color: var(--muted);
+      }
+      footer p {
+        margin: 0;
+      }
+      footer a {
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 600;
+      }
+      footer a:hover {
+        text-decoration: underline;
+      }
+
+      @media (max-width: 860px) {
+        .hero {
+          grid-template-columns: 1fr;
+          gap: 2.2rem;
+          padding-top: 1.8rem;
+        }
+        /* Stacked: centre the intro column above the example. */
+        .hero > div:first-child {
+          text-align: center;
+        }
+        .lead {
+          margin-inline: auto;
+        }
+        .cta,
+        .apps {
+          justify-content: center;
+        }
+        .grid {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      @media (max-width: 560px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        .drag {
+          width: 100%;
+          justify-content: center;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <nav class="topbar">
+        <a class="brand" href="./">
+          <svg viewBox="0 0 32 32" aria-hidden="true">
+            <path
+              class="bubble"
+              d="M8 3h16a5 5 0 0 1 5 5v11a5 5 0 0 1-5 5H13l-6 5v-5.2A5 5 0 0 1 3 19V8a5 5 0 0 1 5-5z"
+            />
+            <path
+              class="glyph"
+              d="M16 8v8.5M12 13l4 4 4-4M11 20h10"
+              stroke-width="2.4"
+              fill="none"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          AI Chat Exporter
+        </a>
+        <a
+          class="chip"
+          href="https://github.com/markusritschel/ai-chat-exporter"
+          target="_blank"
+          rel="noopener"
+          title="Star this project on GitHub"
+        >
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path
+              d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.65 7.65 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"
+            ></path>
+          </svg>
+          Star<span class="count" id="star-count" hidden></span>
+        </a>
+      </nav>
+
+      <header class="hero">
+        <div>
+          <p class="eyebrow">
+            free · MIT-licensed · works locally
+          </p>
+          <h1>Your AI chats,<br />as <em>clean Markdown</em>.</h1>
+          <p class="lead">
+            Keep the conversations worth keeping. One click saves the chat on your screen as a <code>.md</code> file — every table, formula and code block as the assistant wrote it, with frontmatter your notes app understands.
+          </p>
+          <div class="cta">
+            <!-- The link's text becomes the bookmark's name when dragged, and a
+                 javascript: bookmark can have no favicon — so its bar icon is
+                 the emoji leading that text. It is visually hidden (see
+                 .bar-icon) so the button shows only the SVG glyph. -->
+            <a id="bm" class="drag" href="#" aria-disabled="true"
+              ><svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 4v10M7.5 10l4.5 4.5 4.5-4.5M6 19h12" /></svg
+              ><span><span class="bar-icon" aria-hidden="true">⬇️&nbsp;</span>Chat Export</span></a
+            >
+          </div>
+          <p class="hint" id="hint">Fetching the current script…</p>
+          <ul class="apps" aria-label="Works with">
+            <li class="label">Works with</li>
+            <li>Claude</li>
+            <li>ChatGPT<span>beta</span></li>
+            <li>Mistral Vibe<span>beta</span></li>
+          </ul>
+        </div>
+
+        <figure class="doc" aria-label="Example of an exported file">
+          <div class="doc-bar">
+            <i></i><i></i><i></i><b>merge_two_sorted_lists.md</b>
+          </div>
+          <pre><span class="m">---</span>
+<span class="k">title:</span> "Merge two sorted lists"
+<span class="k">source:</span> "https://chatgpt.com/c/…"
+<span class="k">model:</span> "gpt-5"
+<span class="k">exported:</span> 2026-09-26
+<span class="m">---</span>
+
+<span class="h"># Human — Sep 24, 2026, 9:14 AM</span>
+
+How do I merge two sorted lists in Python?
+
+<span class="h"># ChatGPT — Sep 24, 2026, 9:14 AM</span>
+
+Use `heapq.merge` — lazy and stable:
+
+<span class="m">```python</span>
+from heapq import merge
+merged = list(merge(a, b))
+<span class="m">```</span></pre>
+        </figure>
+      </header>
+
+      <section class="narrow" aria-labelledby="start">
+        <h2 id="start">Set up once, use on every chat</h2>
+        <p class="sub">
+          No extension and no account — the whole tool lives in one bookmark.
+        </p>
+        <ol class="steps grid">
+          <li class="card">
+            <h3>Add it to your bar</h3>
+            <p>Pull the Chat Export button up into your bookmarks bar.</p>
+          </li>
+          <li class="card">
+            <h3>Open a conversation</h3>
+            <p>
+              On claude.ai, chatgpt.com or chat.mistral.ai.
+            </p>
+          </li>
+          <li class="card">
+            <h3>Click to save</h3>
+            <p>
+              A small notice confirms the export, and the Markdown file lands in your downloads.
+            </p>
+          </li>
+        </ol>
+        <details>
+          <summary>Bookmarks bar hidden, or dragging not working?</summary>
+          <p>
+            Copy the code, create a bookmark by hand and paste the code in as its address. It behaves exactly like the dragged one.
+          </p>
+          <p>
+            <button class="copy" id="copy" disabled>
+              Copy the code
+            </button>
+            <span id="copied" class="small"></span>
+          </p>
+        </details>
+      </section>
+
+      <section aria-labelledby="why">
+        <div class="narrow">
+          <h2 id="why">Everything, exactly as written</h2>
+          <p class="sub">
+            It reads each app's own data — never the rendered page — so nothing
+            is lost in translation.
+          </p>
+        </div>
+        <div class="grid">
+          <div class="card">
+            <div class="ic">
+              <svg viewBox="0 0 24 24">
+                <path d="M6 3h8l4 4v14H6z" />
+                <path d="M14 3v4h4M9 12h6M9 16h6" />
+              </svg>
+            </div>
+            <h3>Source-level fidelity</h3>
+            <p>
+              Tables, formulas and code blocks come from the assistant's own markdown — nothing is scraped from the screen or converted from HTML.
+            </p>
+          </div>
+          <div class="card">
+            <div class="ic">
+              <svg viewBox="0 0 24 24">
+                <circle cx="6" cy="5" r="2" />
+                <circle cx="6" cy="19" r="2" />
+                <circle cx="18" cy="9" r="2" />
+                <path d="M6 7v10M18 11c0 4-6 3-11.5 6.5" />
+              </svg>
+            </div>
+            <h3>The version you see</h3>
+            <p>
+              Regenerated or edited a message? The export follows the branch
+              that's on your screen.
+            </p>
+          </div>
+          <div class="card">
+            <div class="ic">
+              <svg viewBox="0 0 24 24">
+                <path d="M12 3l9 5-9 5-9-5z" />
+                <path d="M3 13l9 5 9-5" />
+              </svg>
+            </div>
+            <h3>Made for notes and retrieval</h3>
+            <p>
+              Frontmatter turns into Obsidian properties, and one heading per turn gives retrieval pipelines tidy chunks.
+            </p>
+          </div>
+          <div class="card">
+            <div class="ic">
+              <svg viewBox="0 0 24 24">
+                <path d="M8 7l-5 5 5 5M16 7l5 5-5 5M13.5 5l-3 14" />
+              </svg>
+            </div>
+            <h3>Artifacts &amp; attachments</h3>
+            <p>
+              Claude's artifacts, created files and charts as fenced code;
+              uploads noted above the message.
+            </p>
+          </div>
+          <div class="card">
+            <div class="ic">
+              <svg viewBox="0 0 24 24">
+                <path d="M12 4v16M8 8l4-4 4 4M8 16l4 4 4-4" />
+              </svg>
+            </div>
+            <h3>Long chats, complete</h3>
+            <p>
+              The whole thread comes from the API — no scrolling, no missing
+              messages that weren't rendered.
+            </p>
+          </div>
+          <div class="card">
+            <div class="ic">
+              <svg viewBox="0 0 24 24">
+                <rect x="5" y="11" width="14" height="10" rx="2" />
+                <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+              </svg>
+            </div>
+            <h3>Stays on your machine</h3>
+            <p>
+              The file is assembled inside your browser tab. There is no server behind this tool to send anything to.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="apps">
+        <div class="narrow">
+          <h2 id="apps">Supported apps</h2>
+          <p class="sub">
+            One bookmark detects the site it's on and reads that app's own API.
+          </p>
+        </div>
+        <div class="grid">
+          <div class="card app-card">
+            <h3>Claude <span class="status">stable</span></h3>
+            <p class="host">claude.ai</p>
+            <p>
+              Answers plus artifacts (final version), created files, charts and
+              attachments.
+            </p>
+          </div>
+          <div class="card app-card">
+            <h3>ChatGPT <span class="status beta">beta</span></h3>
+            <p class="host">chatgpt.com</p>
+            <p>
+              Answers, with uploads named. Team workspaces supported; reasoning
+              and tool runs skipped.
+            </p>
+          </div>
+          <div class="card app-card">
+            <h3>Mistral Vibe <span class="status beta">beta</span></h3>
+            <p class="host">chat.mistral.ai</p>
+            <p>
+              Answers, following the version on screen. Canvas and uploads not
+              exported yet.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="narrow" aria-labelledby="privacy">
+        <div class="card privacy">
+          <div class="ic">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" />
+              <path d="M9 12l2 2 4-4" />
+            </svg>
+          </div>
+          <div>
+            <h2 id="privacy" style="font-size: 1.1rem">
+              Your data stays with you
+            </h2>
+            <p>
+              For your conversation, the bookmark talks only to the chat app you're signed in to. It asks for the conversation the same way the app itself does, turns it into Markdown inside your tab and hands the file to your browser. <strong>No copy goes anywhere else.</strong>
+            </p>
+            <p class="small">
+              Each run also compares your bookmark with the newest version on GitHub; if yours is outdated, a notice says so — drag the button again to refresh it. That check downloads a public file and sends nothing about you or your chats.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        <p>
+          MIT-licensed
+        </p>
+        <p>
+          <a
+            href="https://github.com/markusritschel/ai-chat-exporter#readme"
+            target="_blank"
+            rel="noopener"
+            >Documentation</a
+          >
+          ·
+          <a
+            href="https://github.com/markusritschel/ai-chat-exporter"
+            target="_blank"
+            rel="noopener"
+            >⭐ Star on GitHub</a
+          >
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>
+
+<script>
+  // ─────────────────────────────────────────────────────────────────────────
+  // This page assembles the bookmarklet HERE, on the friendly github.io origin,
+  // and only ever bakes the export script into a draggable link. The dragged
+  // bookmarklet runs *inline* on the chat site (a browser-level CSP exemption) — it
+  // never fetches-and-evals code there, so the site's strict CSP doesn't affect it.
+  //
+  // ai-chat-exporter.js is embedded VERBATIM and is never modified. The only
+  // added behaviour is a self-contained "update available" shim (below), which
+  // lives entirely in this packaging layer — not in the core script.
+  // ─────────────────────────────────────────────────────────────────────────
+  var RAW  = "https://raw.githubusercontent.com/markusritschel/ai-chat-exporter/main/ai-chat-exporter.js";
+  var PAGE = "https://markusritschel.github.io/ai-chat-exporter/";
+
+  // Cheap change-detection hash (djb2). Not security — just "did the file change?"
+  function hash(s) { var h = 5381, i = s.length; while (i) h = (h * 33) ^ s.charCodeAt(--i); return (h >>> 0).toString(16); }
+
+  // Self-contained update-notice shim, baked into the bookmarklet. "{{HASH}}" is
+  // replaced with the hash of the core script this bookmarklet was built from.
+  // At run time it re-fetches the latest core, hashes it, and if they differ shows
+  // a one-click "update available" notice. It does not touch the core script.
+  //
+  // It owns top:10px in the corner it shares with the exporter's status box. It
+  // does not move that box: it publishes `window.__claudeChatExporterNotice` for
+  // as long as it is on screen, and the exporter positions itself from that. Keep
+  // it that way — layout logic belongs in the core script, which is lintable and
+  // testable, not in this string. Dark ink as the box uses it: white here fails AA.
+  var SHIM = [
+    '(function(){',
+      'try{',
+        'var B="{{HASH}}",U=' + JSON.stringify(RAW) + ',P=' + JSON.stringify(PAGE) + ';',
+        'function h(s){var x=5381,i=s.length;while(i)x=(x*33)^s.charCodeAt(--i);return(x>>>0).toString(16);}',
+        // cache:"no-cache" revalidates instead of trusting the browser copy. The raw
+        // endpoint sends max-age=300, and this fetch runs on every export — so without
+        // it the check compares against content up to 5 minutes stale, and the cache it
+        // populates is the same one the install page reads when re-grabbing.
+        'fetch(U,{cache:"no-cache"}).then(function(r){return r.text();}).then(function(t){',
+          'if(h(t)!==B){',
+            'var d=document.createElement("div");',
+            'd.textContent="\\u26A0\\uFE0F AI Chat Exporter: a newer version exists \\u2014 click to update";',
+            'd.style.cssText="position:fixed;top:10px;right:10px;z-index:10001;background:#5eead4;color:#1a1a1a;padding:8px 12px;border-radius:6px;font:12px/1.4 monospace;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.3);max-width:300px";',
+            // One notice at a time, mirroring the exporter's one-box rule: a
+            // second export starts a second shim, and two notices would stack at
+            // the same coordinates looking like one.
+            'var prev=window.__claudeChatExporterNotice;if(prev)prev.remove();',
+            // Appended before anything else runs. Everything here is inside one
+            // try/catch, and this notice is the only thing that tells a user to
+            // re-grab — a throw after this point costs a behaviour, a throw
+            // before it would hide the fix for itself.
+            'document.body.appendChild(d);',
+            // The entire contract with the exporter: "a notice is on screen".
+            // The exporter positions its own box from this; nothing here touches
+            // that box. The identity guard stops a superseded notice's timer from
+            // clearing the marker belonging to the one now showing.
+            'window.__claudeChatExporterNotice=d;',
+            'var c=function(){d.remove();if(window.__claudeChatExporterNotice===d)delete window.__claudeChatExporterNotice;};',
+            'd.onclick=function(){window.open(P,"_blank");c();};',
+            'setTimeout(c,15000);',
+          '}',
+        // Quiet by default — a failed update check is not the user's problem.
+        // console.debug is hidden unless the console level is "Verbose", so a
+        // maintainer can still spot a CSP block or outage that would otherwise
+        // disable update notices for everyone with no signal at all.
+        '}).catch(function(e){try{console.debug("[ai-chat-exporter] update check failed:",e);}catch(_){}});',
+      '}catch(e){}',
+    '})();'
+  ].join('');
+
+  var bm = document.getElementById("bm");
+  var hint = document.getElementById("hint");
+  var copyBtn = document.getElementById("copy");
+  var href = null;
+
+  // Clicking (instead of dragging) would run the exporter on THIS page and do nothing useful.
+  bm.addEventListener("click", function (e) {
+    e.preventDefault();
+    hint.textContent = "Drag, don't click — the button belongs in your bookmarks bar.";
+  });
+
+  // cache:"no-cache" matters most here: this fetch decides which script gets baked into
+  // the bookmarklet. A cached copy would embed a stale exporter *and* its matching hash,
+  // so the result stays self-consistent and never warns — the user silently installs old
+  // code. The shim's own fetch refreshes that cache on every export, so a user arriving
+  // here from the update notice is exactly the one most likely to be served a stale copy.
+  fetch(RAW, { cache: "no-cache" })
+    .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+    .then(function (core) {
+      var shim = SHIM.replace("{{HASH}}", hash(core));
+      var full = "(function(){" + shim + "\n" + core + "\n})();";
+      href = "javascript:" + encodeURIComponent(full);
+      bm.href = href;
+      bm.removeAttribute("aria-disabled");
+      hint.textContent = "Ready — drag the button into your bookmarks bar.";
+      copyBtn.disabled = false;
+    })
+    .catch(function (e) {
+      hint.textContent = "The script couldn't be fetched (" + e.message + "). Reload the page to retry.";
+    });
+
+  copyBtn.addEventListener("click", function () {
+    if (!href) return;
+    navigator.clipboard.writeText(href).then(function () {
+      document.getElementById("copied").textContent = "Copied to clipboard";
+    });
+  });
+
+  // Live star count — enhancement only; the chip links to the repo regardless.
+  fetch("https://api.github.com/repos/markusritschel/ai-chat-exporter")
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      if (d && typeof d.stargazers_count === "number") {
+        var n = d.stargazers_count;
+        var el = document.getElementById("star-count");
+        el.textContent = n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : String(n);
+        el.hidden = false;
+      }
+    })
+    .catch(function () {});
+</script>
+</body>
+</html>

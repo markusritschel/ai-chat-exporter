@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="96" height="96">
+  <title>AI Chat Exporter</title>
+  <path d="M8 3h16a5 5 0 0 1 5 5v11a5 5 0 0 1-5 5H13l-6 5v-5.2A5 5 0 0 1 3 19V8a5 5 0 0 1 5-5z" fill="#0f766e"/>
+  <path d="M16 8v8.5M12 13l4 4 4-4M11 20h10" stroke="#ffffff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
